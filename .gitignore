@@ -1,0 +1,15 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.opensdf
+*.log
+x64/
+Debug/
+Release/
+
+# CMake
+build/
+
+# Windows
+Thumbs.db
