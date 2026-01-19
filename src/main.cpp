@@ -33,6 +33,12 @@ using namespace glm;
 //       Un format entrelacé est recommandé (ordonné par vertex au lieu par attribut).
 // struct ... { ... };
 
+// Struct représentant un sommet avec position 2D et couleur RGB.
+struct Vertex {
+	glm::vec2 position; // Position 2D (x, y)
+	glm::vec3 color;    // Couleur (r, g, b)        
+};
+
 struct App : public OpenGLApplication
 {
     App()
@@ -65,6 +71,7 @@ struct App : public OpenGLApplication
 		// Config de base.
 		
 		// TODO: Initialisez la couleur de fond.
+		glClearColor(0.5f, 0.5f, 0.5f, 1.0f); // Gris moyen
        
         // TODO: Partie 2: Activez le test de profondeur (GL_DEPTH_TEST) et
         //       l'élimination des faces arrières (GL_CULL_FACE).
@@ -115,6 +122,7 @@ struct App : public OpenGLApplication
 	void drawFrame() override
 	{
 	    // TODO: Nettoyage de la surface de dessin.
+		glClear(GL_COLOR_BUFFER_BIT);
 	    // TODO: Partie 2: Ajoutez le nettoyage du tampon de profondeur.
         
         ImGui::Begin("Scene Parameters");
@@ -132,6 +140,10 @@ struct App : public OpenGLApplication
 	void onClose() override
 	{
 	    // TODO: Libérez les ressources allouées (buffers, shaders, etc.).
+        glDeleteVertexArrays(1, &vao_);
+        glDeleteBuffers(1, &vbo_);
+        glDeleteBuffers(1, &ebo_);
+        glDeleteProgram(basicSP_);
 	}
 
 	// Appelée lors d'une touche de clavier.
@@ -245,8 +257,23 @@ struct App : public OpenGLApplication
         //       Utilisez readFile pour lire le fichier.
         //       N'oubliez pas de vérifier les erreurs suite à la compilation
         //       avec la méthode App::checkShaderCompilingError.
+
+        std::string shaderSource = readFile(path);
+		const char* shaderSourceCStr = shaderSource.c_str();
+
+		//Création du shader object 
+        GLuint shaderID = glCreateShader(type);
+
+		//Association du code source au shader object
+		glShaderSource(shaderID, 1, &shaderSourceCStr, nullptr);
+
+		//compilation du shader
+		glCompileShader(shaderID);
+
+		//Vérification des erreurs de compilation
+		checkShaderCompilingError(path, shaderID);
         
-        return 0;
+        return shaderID;
     }
     
     void loadShaderPrograms()
@@ -262,6 +289,29 @@ struct App : public OpenGLApplication
         // Partie 1
         const char* BASIC_VERTEX_SRC_PATH = "./shaders/basic.vs.glsl";
         const char* BASIC_FRAGMENT_SRC_PATH = "./shaders/basic.fs.glsl";
+
+        // Charger et compiler les shaders
+        GLuint vertexShader = loadShaderObject(GL_VERTEX_SHADER, BASIC_VERTEX_SRC_PATH);
+        GLuint fragmentShader = loadShaderObject(GL_FRAGMENT_SHADER, BASIC_FRAGMENT_SRC_PATH);
+
+        // Créer le programme de shader
+        basicSP_ = glCreateProgram();
+
+        // Attacher les shaders au programme
+        glAttachShader(basicSP_, vertexShader);
+        glAttachShader(basicSP_, fragmentShader);
+
+        // Lier le programme
+        glLinkProgram(basicSP_);
+
+        // Vérifier les erreurs de liaison
+        checkProgramLinkingError("basic", basicSP_);
+
+        // Détacher et supprimer les shaders (on n'en a plus besoin)
+        glDetachShader(basicSP_, vertexShader);
+        glDetachShader(basicSP_, fragmentShader);
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
         
         // Partie 2
         const char* TRANSFORM_VERTEX_SRC_PATH = "./shaders/transform.vs.glsl";
@@ -291,6 +341,46 @@ struct App : public OpenGLApplication
         //       on demande seulement de faire l'allocation de buffers suffisamment gros
         //       pour contenir le polygone durant toute l'exécution du programme.
         //       Réfléchissez bien à l'usage des buffers (paramètre de glBufferData).
+        // Définir les 3 sommets du triangle
+        // Positions recommandées : (-0.5, -0.5), (0.5, -0.5), (0.0, 0.5)
+        vertices_[0] = { {-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f} };  // Bas gauche - Rouge
+        vertices_[1] = { { 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f} };  // Bas droite - Vert
+        vertices_[2] = { { 0.0f,  0.5f}, {0.0f, 0.0f, 1.0f} };  // Haut - Bleu
+
+        // Définir les indices (ordre de dessin)
+        elements_[0] = 0;
+        elements_[1] = 1;
+        elements_[2] = 2;
+
+        // Générer les buffers
+        glGenBuffers(1, &vbo_);  // Vertex Buffer Object
+        glGenBuffers(1, &ebo_);  // Element Buffer Object
+        glGenVertexArrays(1, &vao_);  // Vertex Array Object
+
+        // Configurer le VAO
+        glBindVertexArray(vao_);
+
+        // Remplir le VBO avec les données des sommets
+        glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_), vertices_, GL_STATIC_DRAW);
+
+        // Remplir le EBO avec les indices
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements_), elements_, GL_STATIC_DRAW);
+
+        // Spécifier le format des données
+        // Attribut 0 : position (2 floats, offset 0)
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+        glEnableVertexAttribArray(0);
+
+        // Attribut 1 : couleur (3 floats, offset après position)
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, color));
+        glEnableVertexAttribArray(1);
+
+        // Délier le VAO pour éviter des modifications accidentelles
+        glBindVertexArray(0);
+
+        CHECK_GL_ERROR;
     
         // TODO: Créez un vao et spécifiez le format des données dans celui-ci.
         //       N'oubliez pas de lier le ebo avec le vao et de délier le vao
@@ -317,6 +407,19 @@ struct App : public OpenGLApplication
         }
         
         // TODO: Dessin du polygone.
+        // Utiliser le programme de shader
+        glUseProgram(basicSP_);
+
+        // Lier le VAO
+        glBindVertexArray(vao_);
+
+        // Dessiner le triangle avec glDrawElements
+        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+
+        // Délier le VAO
+        glBindVertexArray(0);
+
+        CHECK_GL_ERROR;
     }
     
     void drawStreetlights(glm::mat4& projView)
@@ -429,8 +532,8 @@ private:
     static constexpr unsigned int MAX_N_SIDES = 12;
     
     // TODO: Modifiez les types de vertices_ et elements_ pour votre besoin.
-    //  vertices_[MAX_N_SIDES + 1];
-    //  elements_[MAX_N_SIDES * 3];
+    Vertex vertices_[3];  // 3 sommets pour un triangle
+    GLuint elements_[3];  // 3 indices pour dessiner le triangle
     
     int nSide_, oldNSide_;
     
