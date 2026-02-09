@@ -1,6 +1,8 @@
 #pragma once
 
 #include <glbinding/gl/gl.h>
+#include <glm/glm.hpp>               // AJOUTEZ CETTE LIGNE
+#include <glm/vec3.hpp>              // AJOUTEZ CETTE LIGNE
 
 using namespace gl;
 
@@ -11,10 +13,10 @@ public:
     
     ~Model();
     
-    void draw();
+    void draw() const;
 
 private:
-    GLuint vao_, vbo_, ebo_;
-    GLsizei count_;
+    GLuint vao_{0}, vbo_{0}, ebo_{0};
+    GLsizei count_{0};
 };
 

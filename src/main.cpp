@@ -48,7 +48,11 @@ struct App : public OpenGLApplication
     , cameraOrientation_(0.f, 0.f)
     , currentScene_(0)
     , isMouseMotionEnabled_(false)
+    , isAutopilotEnabled_(true)
+    , trackDistance_(0.0f)
     {
+        car_.position = glm::vec3(0.0f, 0.0f, 15.0f);
+        car_.orientation.y = glm::radians(180.0f);
     }
 	
 	void init() override
@@ -75,6 +79,9 @@ struct App : public OpenGLApplication
        
         // TODO: Partie 2: Activez le test de profondeur (GL_DEPTH_TEST) et
         //       l'élimination des faces arrières (GL_CULL_FACE).
+        // Partie 2: Activer le test de profondeur et l'élimination des faces arrières
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
                 
         loadShaderPrograms();
         
@@ -83,6 +90,8 @@ struct App : public OpenGLApplication
         
         // Partie 2
         loadModels();
+
+        initStaticMatrices();
         
         // TODO: Insérez les initialisations supplémentaires ici au besoin.
 	}
@@ -122,7 +131,7 @@ struct App : public OpenGLApplication
 	void drawFrame() override
 	{
 	    // TODO: Nettoyage de la surface de dessin.
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	    // TODO: Partie 2: Ajoutez le nettoyage du tampon de profondeur.
         
         ImGui::Begin("Scene Parameters");
@@ -320,6 +329,29 @@ struct App : public OpenGLApplication
         // TODO: Allez chercher les locations de vos variables uniform dans le shader
         //       pour initialiser mvpUniformLocation_ et car_.mvpUniformLocation,
         //       puis colorModUniformLocation_ et car_.colorModUniformLocation.
+
+        vertexShader = loadShaderObject(GL_VERTEX_SHADER, TRANSFORM_VERTEX_SRC_PATH);
+        fragmentShader = loadShaderObject(GL_FRAGMENT_SHADER, TRANSFORM_FRAGMENT_SRC_PATH);
+
+        transformSP_ = glCreateProgram();
+        glAttachShader(transformSP_, vertexShader);
+        glAttachShader(transformSP_, fragmentShader);
+        glLinkProgram(transformSP_);
+        checkProgramLinkingError("transform", transformSP_);
+
+        glDetachShader(transformSP_, vertexShader);
+        glDetachShader(transformSP_, fragmentShader);
+        glDeleteShader(vertexShader);
+        glDeleteShader(fragmentShader);
+
+        // Récupérer les locations des variables uniform
+        mvpUniformLocation_ = glGetUniformLocation(transformSP_, "uMVP");
+        colorModUniformLocation_ = glGetUniformLocation(transformSP_, "uColorMod");
+
+        // Pour la voiture
+        car_.mvpUniformLocation = mvpUniformLocation_;
+        car_.colorModUniformLocation = colorModUniformLocation_;
+
     }
     
     void generateNgon()
@@ -451,77 +483,66 @@ struct App : public OpenGLApplication
         CHECK_GL_ERROR;
     }
     
+    void drawModel(const Model& model, const glm::mat4& projView, const glm::mat4& modelMatrix)
+    {
+        glm::mat4 mvp = projView * modelMatrix;
+        glUniformMatrix4fv(mvpUniformLocation_, 1, GL_FALSE, glm::value_ptr(mvp));
+        model.draw();
+    }
+
     void drawStreetlights(glm::mat4& projView)
     {
-        // TODO: Dessin des lampadaires. Ceux-ci doivent être immobiles.
-        //
-        //       Placez les positions comme sur l'image de l'énoncé.
-        //       La distance par rapport au bord de la route est de 0.5.
-        //       La hauteur est de -0.15 (un peu renfoncé dans le sol).
-        //
-        //       Ils sont toujours orientés de façon perpendiculaire à la route
-        //       pour "l'éclairer".
+        for (int i = 0; i < 8; ++i)
+        {
+            drawModel(streetlight_, projView, streetlightModelMatrices_[i]);
+        }
     }
-    
+
     void drawTree(glm::mat4& projView)
     {
-        // TODO: Dessin de l'arbre. Il doit être immobile.
-        //
-        //       Placez la position comme sur l'image de l'énoncé.
-        //
-        //       Il a une mise à l'échelle sur tous les axes
-        //       d'un facteur 15.
-        //
-        //       Désactiver le CULL_FACE pour voir les faces arrières
-        //       seulement pour ce dessin.
+        glDisable(GL_CULL_FACE);
+        drawModel(tree_, projView, treeModelMatrice_);
+        glEnable(GL_CULL_FACE);
     }
     
     void drawGround(glm::mat4& projView)
     {
-        // TODO: Dessin du sol.
-        //
-        //       Ici, les modèles originaux sont des carrés de 1 unité.
-        //       
-        //       La route est consistué par partie de plusieurs segments de route.
-        //       
-        //       La longueur total d'un côté de route est de 30 et il doit y avoir 7
-        //       segments. Un segment de route est 5 unitées de large.
-        //       La ligne blanche devrait traverser le long de la route.
-        //
-        //       Les coins des routes sont remplis par un autre modèle sans ligne blanche.
-        //
-        //       Le gazon a aussi une mise à l'échelle pour être long de 50
-        //       unités et large de 50. Celui-ci doit aussi être légèrement en
-        //       dessous de la route de 0.1.
-        //       Réflexion supplémentaire: Que se passe-t-il s'il n'est pas déplacé?
-        //       Comment expliquer ce qui est visible?
+        drawModel(grass_, projView, groundModelMatrice_);
+
+        for (int i = 0; i < 4; ++i)
+        {
+            drawModel(streetcorner_, projView, streetPatchesModelMatrices_[i]);
+        }
+
+        for (int i = 4; i < N_STREET_PATCHES; ++i)
+        {
+            drawModel(street_, projView, streetPatchesModelMatrices_[i]);
+        }
     }
-    
+
     glm::mat4 getViewMatrix()
     {
-        // TODO: Calculer la matrice de vue.
-        //
-        //       Vous n'avez pas le droit d'utiliser de fonction lookAt ou 
-        //       d'inversion de matrice. À la place, procéder en inversant
-        //       les opérations. N'oubliez pas que cette matrice est appliquée
-        //       aux éléments de la scène. Au lieu de déplacer la caméra 10
-        //       unités vers la gauche, on déplace le monde 10 unités vers la
-        //       droite.
-        //
-        //       La caméra est placée à la position cameraPosition et orientée
-        //       par les angles cameraOrientation (en radian).
-        
-        return glm::mat4(1.0);
+        glm::mat4 view = glm::mat4(1.0f);
+        view = glm::rotate(view, -cameraOrientation_.x, glm::vec3(1.0f, 0.0f, 0.0f));
+        view = glm::rotate(view, -cameraOrientation_.y, glm::vec3(0.0f, 1.0f, 0.0f));
+        view = glm::translate(view, -cameraPosition_);
+        return view;
     }
-    
-    glm::mat4 getPerspectiveProjectionMatrix()
-    {
+
+    glm::mat4 getPerspectiveProjectionMatrix()      
+    {       
         // TODO: Calculer la matrice de projection.
         //
         //       Celle-ci aura un fov de 70 degrés, un near à 0.1 et un far à 300.
         //       
         
         // getWindowAspect();
+        float fov = glm::radians(70.0f);  // Convertir 70° en radians
+    float aspect = getWindowAspect();  // Ratio largeur/hauteur
+    float nearPlane = 0.1f;
+    float farPlane = 300.0f;
+    
+    return glm::perspective(fov, aspect, nearPlane, farPlane);
         
         return glm::mat4(1.0);
     }
@@ -537,14 +558,137 @@ struct App : public OpenGLApplication
         ImGui::Checkbox("Left Blinker", &car_.isLeftBlinkerActivated);
         ImGui::Checkbox("Right Blinker", &car_.isRightBlinkerActivated);
         ImGui::Checkbox("Brake", &car_.isBraking);
+        ImGui::Checkbox("Auto drive", &isAutopilotEnabled_);
         ImGui::End();
-    
+
         updateCameraInput();
         car_.update(deltaTime_);
-        
-        // TODO: Dessin de la totalité de la scène graphique.
-        //       On devrait voir la route, le gazon, l'arbre, les lampadaires
-        //       et la voiture. La voiture est contrôlable avec l'interface graphique.
+
+        if (isAutopilotEnabled_)
+            updateCarOnTrack(deltaTime_);
+
+        glUseProgram(transformSP_);
+        car_.setColorMod(glm::vec3(1.0f));
+
+        glm::mat4 view = getViewMatrix();
+        glm::mat4 projection = getPerspectiveProjectionMatrix();
+        glm::mat4 projView = projection * view;
+
+        drawGround(projView);
+        drawTree(projView);
+        drawStreetlights(projView);
+        car_.draw(projView);
+    }
+
+    void initStaticMatrices()
+    {
+        const float ROAD_HALF_LENGTH = 15.0f;
+        const float ROAD_WIDTH = 5.0f;
+        const float SEGMENT_LENGTH = 30.0f / 7.0f;
+
+        groundModelMatrice_ = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -0.1f, 0.0f));
+        groundModelMatrice_ = glm::scale(groundModelMatrice_, glm::vec3(50.0f, 1.0f, 50.0f));
+
+        treeModelMatrice_ = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+        treeModelMatrice_ = glm::scale(treeModelMatrice_, glm::vec3(15.0f, 15.0f, 15.0f));
+
+        const float lightOffset = ROAD_HALF_LENGTH - (ROAD_WIDTH * 0.5f) - 0.25f;
+        const glm::vec3 positions[] =
+        {
+            { -7.5f, -0.15f, -lightOffset },
+            {  7.5f, -0.15f, -lightOffset },
+            { -7.5f, -0.15f,  lightOffset },
+            {  7.5f, -0.15f,  lightOffset },
+            { -lightOffset, -0.15f, -7.5f },
+            { -lightOffset, -0.15f,  7.5f },
+            {  lightOffset, -0.15f, -7.5f },
+            {  lightOffset, -0.15f,  7.5f }
+        };
+
+        for (int i = 0; i < N_STREETLIGHTS; ++i)
+        {
+            glm::mat4 model = glm::translate(glm::mat4(1.0f), positions[i]);
+            glm::vec3 toCenter = glm::normalize(glm::vec3(0.0f) - positions[i]);
+            float rotation = std::atan2(-toCenter.x, -toCenter.z) + glm::radians(90.0f);
+            streetlightModelMatrices_[i] = glm::rotate(model, rotation, glm::vec3(0.0f, 1.0f, 0.0f));
+        }
+
+        int patchIndex = 0;
+        const glm::vec3 corners[] =
+        {
+            { -ROAD_HALF_LENGTH, 0.0f, -ROAD_HALF_LENGTH },
+            {  ROAD_HALF_LENGTH, 0.0f, -ROAD_HALF_LENGTH },
+            { -ROAD_HALF_LENGTH, 0.0f,  ROAD_HALF_LENGTH },
+            {  ROAD_HALF_LENGTH, 0.0f,  ROAD_HALF_LENGTH }
+        };
+
+        for (const auto& pos : corners)
+        {
+            glm::mat4 cornerModel = glm::translate(glm::mat4(1.0f), pos);
+            streetPatchesModelMatrices_[patchIndex++] = glm::scale(cornerModel, glm::vec3(ROAD_WIDTH, 1.0f, ROAD_WIDTH));
+        }
+
+        for (int i = 0; i < 7; ++i)
+        {
+            float x = -ROAD_HALF_LENGTH + (SEGMENT_LENGTH * 0.5f) + i * SEGMENT_LENGTH;
+
+            glm::mat4 top = glm::translate(glm::mat4(1.0f), glm::vec3(x, 0.0f, -ROAD_HALF_LENGTH));
+            streetPatchesModelMatrices_[patchIndex++] = glm::scale(top, glm::vec3(SEGMENT_LENGTH, 1.0f, ROAD_WIDTH));
+
+            glm::mat4 bottom = glm::translate(glm::mat4(1.0f), glm::vec3(x, 0.0f, ROAD_HALF_LENGTH));
+            streetPatchesModelMatrices_[patchIndex++] = glm::scale(bottom, glm::vec3(SEGMENT_LENGTH, 1.0f, ROAD_WIDTH));
+        }
+
+        for (int i = 0; i < 7; ++i)
+        {
+            float z = -ROAD_HALF_LENGTH + (SEGMENT_LENGTH * 0.5f) + i * SEGMENT_LENGTH;
+
+            glm::mat4 left = glm::translate(glm::mat4(1.0f), glm::vec3(-ROAD_HALF_LENGTH, 0.0f, z));
+            left = glm::rotate(left, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            streetPatchesModelMatrices_[patchIndex++] = glm::scale(left, glm::vec3(SEGMENT_LENGTH, 1.0f, ROAD_WIDTH));
+
+            glm::mat4 right = glm::translate(glm::mat4(1.0f), glm::vec3(ROAD_HALF_LENGTH, 0.0f, z));
+            right = glm::rotate(right, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            streetPatchesModelMatrices_[patchIndex++] = glm::scale(right, glm::vec3(SEGMENT_LENGTH, 1.0f, ROAD_WIDTH));
+        }
+    }
+    
+    void updateCarOnTrack(float deltaTime)
+    {
+        const float ROAD_HALF_LENGTH = 15.0f;
+        const float SEGMENT_LENGTH = ROAD_HALF_LENGTH * 2.0f;
+        const float PERIMETER = 4.0f * SEGMENT_LENGTH;
+
+        trackDistance_ += car_.speed * deltaTime;
+        trackDistance_ = std::fmod(trackDistance_, PERIMETER);
+        if (trackDistance_ < 0.0f)
+            trackDistance_ += PERIMETER;
+
+        float d = trackDistance_;
+
+        if (d < SEGMENT_LENGTH)
+        {
+            car_.position = glm::vec3(-ROAD_HALF_LENGTH + d, 0.0f, ROAD_HALF_LENGTH);
+            car_.orientation.y = glm::radians(180.0f);
+        }
+        else if (d < 2.0f * SEGMENT_LENGTH)
+        {
+            d -= SEGMENT_LENGTH;
+            car_.position = glm::vec3(ROAD_HALF_LENGTH, 0.0f, ROAD_HALF_LENGTH - d);
+            car_.orientation.y = glm::radians(90.0f);
+        }
+        else if (d < 3.0f * SEGMENT_LENGTH)
+        {
+            d -= 2.0f * SEGMENT_LENGTH;
+            car_.position = glm::vec3(ROAD_HALF_LENGTH - d, 0.0f, -ROAD_HALF_LENGTH);
+            car_.orientation.y = 0.0f;
+        }
+        else
+        {
+            d -= 3.0f * SEGMENT_LENGTH;
+            car_.position = glm::vec3(-ROAD_HALF_LENGTH, 0.0f, -ROAD_HALF_LENGTH + d);
+            car_.orientation.y = glm::radians(-90.0f);
+        }
     }
     
 private:
@@ -595,6 +739,8 @@ private:
     int currentScene_;
     
     bool isMouseMotionEnabled_;
+    bool isAutopilotEnabled_;
+    float trackDistance_;
 };
 
 

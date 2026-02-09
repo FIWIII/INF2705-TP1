@@ -2,6 +2,8 @@
 
 #include <glbinding/gl/gl.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>  // AJOUTEZ CETTE LIGNE
+#include <glm/gtc/type_ptr.hpp>           // AJOUTEZ CETTE LIGNE
 
 #include "model.hpp"
 
@@ -15,6 +17,8 @@ public:
     void update(float deltaTime);
     
     void draw(glm::mat4& projView);
+
+    void setColorMod(const glm::vec3& color);
     
 private:
     // TODO: Une division en méthodes a déjà été réalisée pour vous.
@@ -23,15 +27,17 @@ private:
     //       Il sera important de penser à comment réutiliser le plus possible les matrices.
     //       Utilisez le passage par référence ou par copie pour vous aider.
     
-    void drawFrame();
-    
-    void drawWheel();
-    void drawWheels();
-    
-    void drawBlinker();
-    void drawLight();    
-    void drawHeadlight();
-    void drawHeadlights();
+    void drawFrame(glm::mat4& projView, glm::mat4 carModel);
+
+    void drawWheel(glm::mat4& projView, glm::mat4 wheelModel, bool isFrontWheel);
+    void drawWheels(glm::mat4& projView, glm::mat4 carModel);
+
+    void drawBlinker(glm::mat4& projView, glm::mat4 headlightModel, bool isLeftHeadlight);
+    void drawLight(glm::mat4& projView, glm::mat4 headlightModel, bool isFrontHeadlight);    
+    void drawHeadlight(glm::mat4& projView, glm::mat4 headlightModel, bool isFrontHeadlight, bool isLeftHeadlight);
+    void drawHeadlights(glm::mat4& projView, glm::mat4 frameModel);
+
+    glm::vec3 lastColorMod_;
     
 private:    
     Model frame_;
@@ -54,8 +60,8 @@ public:
     bool isBlinkerOn;
     float blinkerTimer;
     
-    GLuint colorModUniformLocation;
-    GLuint mvpUniformLocation;
+    GLuint colorModUniformLocation{0};
+    GLuint mvpUniformLocation{0};
 };
 
 

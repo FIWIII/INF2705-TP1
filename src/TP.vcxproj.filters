@@ -74,6 +74,7 @@
     <None Include="shaders\transform.vs.glsl">
       <Filter>Shader Source Files</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inf2705\OpenGLApplication.hpp">
