@@ -333,27 +333,32 @@ struct App : public OpenGLApplication
         
         const float RADIUS = 0.7f;
 
+        // Point central BLANC
+        vertices_[0] = { {0.0f, 0.0f}, {1.0f, 1.0f, 1.0f} };  // Centre blanc
+
+        // Générer les points du périmètre avec couleurs
         for (int i = 0; i < nSide_; i++)
         {
             float angle = 2.0f * M_PI * i / nSide_;
             float x = RADIUS * cos(angle);
             float y = RADIUS * sin(angle);
 
+            // Couleur arc-en-ciel basée sur l'angle
             float hue = (float)i / nSide_;
             glm::vec3 color;
             color.r = 0.5f + 0.5f * cos(2.0f * M_PI * hue);
             color.g = 0.5f + 0.5f * cos(2.0f * M_PI * (hue + 0.333f));
             color.b = 0.5f + 0.5f * cos(2.0f * M_PI * (hue + 0.666f));
 
-            vertices_[i] = { {x, y}, color };
+            vertices_[i + 1] = { {x, y}, color };  // i+1 car vertices_[0] = centre
         }
 
-        // Générer les indices : triangulation en éventail depuis le sommet 0
-        for (int i = 0; i < nSide_ - 2; i++)
+        // Générer les indices : triangle fan depuis le centre
+        for (int i = 0; i < nSide_; i++)
         {
-            elements_[i * 3 + 0] = 0;           // Premier sommet (pivot)
-            elements_[i * 3 + 1] = i + 1;       // Sommet suivant
-            elements_[i * 3 + 2] = i + 2;       // Sommet d'après
+            elements_[i * 3 + 0] = 0;                    // Centre
+            elements_[i * 3 + 1] = i + 1;                // Point actuel
+            elements_[i * 3 + 2] = (i + 1) % nSide_ + 1; // Point suivant (wraparound)
         }
 
     }
@@ -422,11 +427,11 @@ struct App : public OpenGLApplication
             //       seulement mettre à jour les buffers actuels.
             // Mettre à jour le VBO avec les nouvelles données
             glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * nSide_, vertices_);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * (nSide_ + 1), vertices_);
 
             // Mettre à jour le EBO avec les nouveaux indices
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(GLuint)* (nSide_ - 2) * 3, elements_);
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(GLuint)* nSide_ * 3, elements_);
         }
         
         // TODO: Dessin du polygone.
@@ -438,7 +443,7 @@ struct App : public OpenGLApplication
 
 
         // CORRECTION: Dessiner TOUS les triangles du polygone
-        glDrawElements(GL_TRIANGLES, (nSide_ - 2) * 3, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, nSide_ * 3, GL_UNSIGNED_INT, 0);
 
         // Délier le VAO
         glBindVertexArray(0);
@@ -557,7 +562,7 @@ private:
     
     // TODO: Modifiez les types de vertices_ et elements_ pour votre besoin.
 	Vertex vertices_[MAX_N_SIDES + 1]; 
-    GLuint elements_[(MAX_N_SIDES - 2) * 3];
+    GLuint elements_[(MAX_N_SIDES) * 3];
     
     int nSide_, oldNSide_;
     
