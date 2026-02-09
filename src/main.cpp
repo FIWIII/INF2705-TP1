@@ -332,6 +332,30 @@ struct App : public OpenGLApplication
         //       pour permettre la réutilisation.        
         
         const float RADIUS = 0.7f;
+
+        for (int i = 0; i < nSide_; i++)
+        {
+            float angle = 2.0f * M_PI * i / nSide_;
+            float x = RADIUS * cos(angle);
+            float y = RADIUS * sin(angle);
+
+            float hue = (float)i / nSide_;
+            glm::vec3 color;
+            color.r = 0.5f + 0.5f * cos(2.0f * M_PI * hue);
+            color.g = 0.5f + 0.5f * cos(2.0f * M_PI * (hue + 0.333f));
+            color.b = 0.5f + 0.5f * cos(2.0f * M_PI * (hue + 0.666f));
+
+            vertices_[i] = { {x, y}, color };
+        }
+
+        // Générer les indices : triangulation en éventail depuis le sommet 0
+        for (int i = 0; i < nSide_ - 2; i++)
+        {
+            elements_[i * 3 + 0] = 0;           // Premier sommet (pivot)
+            elements_[i * 3 + 1] = i + 1;       // Sommet suivant
+            elements_[i * 3 + 2] = i + 2;       // Sommet d'après
+        }
+
     }
     
     void initShapeData()
@@ -341,16 +365,6 @@ struct App : public OpenGLApplication
         //       on demande seulement de faire l'allocation de buffers suffisamment gros
         //       pour contenir le polygone durant toute l'exécution du programme.
         //       Réfléchissez bien à l'usage des buffers (paramètre de glBufferData).
-        // Définir les 3 sommets du triangle
-        // Positions recommandées : (-0.5, -0.5), (0.5, -0.5), (0.0, 0.5)
-        vertices_[0] = { {-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f} };  // Bas gauche - Rouge
-        vertices_[1] = { { 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f} };  // Bas droite - Vert
-        vertices_[2] = { { 0.0f,  0.5f}, {0.0f, 0.0f, 1.0f} };  // Haut - Bleu
-
-        // Définir les indices (ordre de dessin)
-        elements_[0] = 0;
-        elements_[1] = 1;
-        elements_[2] = 2;
 
         // Générer les buffers
         glGenBuffers(1, &vbo_);  // Vertex Buffer Object
@@ -362,11 +376,12 @@ struct App : public OpenGLApplication
 
         // Remplir le VBO avec les données des sommets
         glBindBuffer(GL_ARRAY_BUFFER, vbo_);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_), vertices_, GL_STATIC_DRAW);
+        // Allouer le VBO avec une taille suffisante (GL_DYNAMIC_DRAW car les données changeront)
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_), nullptr, GL_DYNAMIC_DRAW);
 
         // Remplir le EBO avec les indices
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements_), elements_, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements_), nullptr, GL_DYNAMIC_DRAW);
 
         // Spécifier le format des données
         // Attribut 0 : position (2 floats, offset 0)
@@ -397,6 +412,7 @@ struct App : public OpenGLApplication
         if (hasNumberOfSidesChanged)
         {
             oldNSide_ = nSide_;
+            generateNgon();
             // generateNgon(vertices_, elements_, nSide_);
             
             // TODO: Le nombre de côtés a changé, la méthode App::generateNgon
@@ -404,6 +420,13 @@ struct App : public OpenGLApplication
             //       Ici, il faut envoyer les données à jour au GPU.
             //       Attention, il ne faut pas faire d'allocation/réallocation, on veut
             //       seulement mettre à jour les buffers actuels.
+            // Mettre à jour le VBO avec les nouvelles données
+            glBindBuffer(GL_ARRAY_BUFFER, vbo_);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * nSide_, vertices_);
+
+            // Mettre à jour le EBO avec les nouveaux indices
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_);
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(GLuint)* (nSide_ - 2) * 3, elements_);
         }
         
         // TODO: Dessin du polygone.
@@ -413,8 +436,9 @@ struct App : public OpenGLApplication
         // Lier le VAO
         glBindVertexArray(vao_);
 
-        // Dessiner le triangle avec glDrawElements
-        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+
+        // CORRECTION: Dessiner TOUS les triangles du polygone
+        glDrawElements(GL_TRIANGLES, (nSide_ - 2) * 3, GL_UNSIGNED_INT, 0);
 
         // Délier le VAO
         glBindVertexArray(0);
@@ -532,8 +556,8 @@ private:
     static constexpr unsigned int MAX_N_SIDES = 12;
     
     // TODO: Modifiez les types de vertices_ et elements_ pour votre besoin.
-    Vertex vertices_[3];  // 3 sommets pour un triangle
-    GLuint elements_[3];  // 3 indices pour dessiner le triangle
+	Vertex vertices_[MAX_N_SIDES + 1]; 
+    GLuint elements_[(MAX_N_SIDES - 2) * 3];
     
     int nSide_, oldNSide_;
     
