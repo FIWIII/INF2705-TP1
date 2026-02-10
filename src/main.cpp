@@ -1,6 +1,5 @@
 #include <cstddef>
 #include <cstdint>
-
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -8,16 +7,12 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 #include "happly.h"
 #include <imgui/imgui.h>
-
 #include <inf2705/OpenGLApplication.hpp>
-
 #include "model.hpp"
 #include "car.hpp"
 
@@ -26,17 +21,9 @@
 using namespace gl;
 using namespace glm;
 
-// TODO: Il est fortement recommandé de définir quelques structs
-//       pour représenter les attributs.
-//       Faire de même pour représenter une vertex, qui est constitué d'attributs.
-//       Cela facilitera l'utilisation et rendra votre code plus clair.
-//       Un format entrelacé est recommandé (ordonné par vertex au lieu par attribut).
-// struct ... { ... };
-
-// Struct représentant un sommet avec position 2D et couleur RGB.
 struct Vertex {
-	glm::vec2 position; // Position 2D (x, y)
-	glm::vec3 color;    // Couleur (r, g, b)        
+	glm::vec2 position; 
+	glm::vec3 color;            
 };
 
 struct App : public OpenGLApplication
@@ -72,14 +59,8 @@ struct App : public OpenGLApplication
 			"Espace : activer/désactiver la souris." "\n"
 		);
 
-		// Config de base.
-		
-		// TODO: Initialisez la couleur de fond.
 		glClearColor(0.5f, 0.5f, 0.5f, 1.0f); // Gris moyen
        
-        // TODO: Partie 2: Activez le test de profondeur (GL_DEPTH_TEST) et
-        //       l'élimination des faces arrières (GL_CULL_FACE).
-        // Partie 2: Activer le test de profondeur et l'élimination des faces arrières
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
                 
@@ -93,7 +74,6 @@ struct App : public OpenGLApplication
 
         initStaticMatrices();
         
-        // TODO: Insérez les initialisations supplémentaires ici au besoin.
 	}
 	
 	    
@@ -127,12 +107,10 @@ struct App : public OpenGLApplication
     }
 	
 
-	// Appelée à chaque trame. Le buffer swap est fait juste après.
 	void drawFrame() override
 	{
-	    // TODO: Nettoyage de la surface de dessin.
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	    // TODO: Partie 2: Ajoutez le nettoyage du tampon de profondeur.
         
         ImGui::Begin("Scene Parameters");
         ImGui::Combo("Scene", &currentScene_, SCENE_NAMES, N_SCENE_NAMES);
@@ -145,17 +123,15 @@ struct App : public OpenGLApplication
         }
 	}
 
-	// Appelée lorsque la fenêtre se ferme.
 	void onClose() override
 	{
-	    // TODO: Libérez les ressources allouées (buffers, shaders, etc.).
         glDeleteVertexArrays(1, &vao_);
         glDeleteBuffers(1, &vbo_);
         glDeleteBuffers(1, &ebo_);
         glDeleteProgram(basicSP_);
+        glDeleteProgram(transformSP_);
 	}
 
-	// Appelée lors d'une touche de clavier.
 	void onKeyPress(const sf::Event::KeyPressed& key) override
 	{
 		using enum sf::Keyboard::Key;
@@ -262,24 +238,16 @@ struct App : public OpenGLApplication
     
     GLuint loadShaderObject(GLenum type, const char* path)
     {
-        // TODO: Chargement d'un shader object.
-        //       Utilisez readFile pour lire le fichier.
-        //       N'oubliez pas de vérifier les erreurs suite à la compilation
-        //       avec la méthode App::checkShaderCompilingError.
 
         std::string shaderSource = readFile(path);
 		const char* shaderSourceCStr = shaderSource.c_str();
 
-		//Création du shader object 
         GLuint shaderID = glCreateShader(type);
 
-		//Association du code source au shader object
 		glShaderSource(shaderID, 1, &shaderSourceCStr, nullptr);
 
-		//compilation du shader
 		glCompileShader(shaderID);
 
-		//Vérification des erreurs de compilation
 		checkShaderCompilingError(path, shaderID);
         
         return shaderID;
@@ -287,14 +255,6 @@ struct App : public OpenGLApplication
     
     void loadShaderPrograms()
     {
-        // TODO: Chargement des shader programs.
-        //       N'oubliez pas de vérifier les erreurs suite à la liaison (linking)
-        //       avec la méthode App::checkProgramLinkingError. Vous pouvez
-        //       donner un nom unique pour plus facilement lire les erreurs 
-        //       dans la console.
-        //       Il est recommandé de détacher et de supprimer les shaders objects
-        //       directement après la liaison.
-        
         // Partie 1
         const char* BASIC_VERTEX_SRC_PATH = "./shaders/basic.vs.glsl";
         const char* BASIC_FRAGMENT_SRC_PATH = "./shaders/basic.fs.glsl";
@@ -325,10 +285,6 @@ struct App : public OpenGLApplication
         // Partie 2
         const char* TRANSFORM_VERTEX_SRC_PATH = "./shaders/transform.vs.glsl";
         const char* TRANSFORM_FRAGMENT_SRC_PATH = "./shaders/transform.fs.glsl";
-        
-        // TODO: Allez chercher les locations de vos variables uniform dans le shader
-        //       pour initialiser mvpUniformLocation_ et car_.mvpUniformLocation,
-        //       puis colorModUniformLocation_ et car_.colorModUniformLocation.
 
         vertexShader = loadShaderObject(GL_VERTEX_SHADER, TRANSFORM_VERTEX_SRC_PATH);
         fragmentShader = loadShaderObject(GL_FRAGMENT_SHADER, TRANSFORM_FRAGMENT_SRC_PATH);
@@ -355,17 +311,8 @@ struct App : public OpenGLApplication
     }
     
     void generateNgon()
-    {
-        // TODO: Générez un polygone à N côtés (couramment appelé N-gon).
-        //       Vous devez gérer les cas entre 5 et 12 côtés (pentagone, hexagone
-        //       , etc.). Ceux-ci ont un rayon constant de 0.7.
-        //       Chaque point possède une couleur (libre au choix).
-        //       Vous devez minimiser le nombre de points et définir des indices
-        //       pour permettre la réutilisation.        
-        
+    {         
         const float RADIUS = 0.7f;
-
-        // Point central BLANC
         vertices_[0] = { {0.0f, 0.0f}, {1.0f, 1.0f, 1.0f} };  // Centre blanc
 
         // Générer les points du périmètre avec couleurs
@@ -466,7 +413,6 @@ struct App : public OpenGLApplication
             glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, sizeof(GLuint)* nSide_ * 3, elements_);
         }
         
-        // TODO: Dessin du polygone.
         // Utiliser le programme de shader
         glUseProgram(basicSP_);
 
@@ -474,7 +420,7 @@ struct App : public OpenGLApplication
         glBindVertexArray(vao_);
 
 
-        // CORRECTION: Dessiner TOUS les triangles du polygone
+        //Dessiner TOUS les triangles du polygone
         glDrawElements(GL_TRIANGLES, nSide_ * 3, GL_UNSIGNED_INT, 0);
 
         // Délier le VAO
@@ -538,12 +484,12 @@ struct App : public OpenGLApplication
         
         // getWindowAspect();
         float fov = glm::radians(70.0f);  // Convertir 70° en radians
-    float aspect = getWindowAspect();  // Ratio largeur/hauteur
-    float nearPlane = 0.1f;
-    float farPlane = 300.0f;
+        float aspect = getWindowAspect();  // Ratio largeur/hauteur
+        float nearPlane = 0.1f;
+        float farPlane = 300.0f;
     
-    return glm::perspective(fov, aspect, nearPlane, farPlane);
-        
+        return glm::perspective(fov, aspect, nearPlane, farPlane);
+            
         return glm::mat4(1.0);
     }
     
@@ -704,7 +650,6 @@ private:
     static constexpr unsigned int MIN_N_SIDES = 5;
     static constexpr unsigned int MAX_N_SIDES = 12;
     
-    // TODO: Modifiez les types de vertices_ et elements_ pour votre besoin.
 	Vertex vertices_[MAX_N_SIDES + 1]; 
     GLuint elements_[(MAX_N_SIDES) * 3];
     

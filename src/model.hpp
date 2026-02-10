@@ -1,8 +1,8 @@
 #pragma once
 
 #include <glbinding/gl/gl.h>
-#include <glm/glm.hpp>               // AJOUTEZ CETTE LIGNE
-#include <glm/vec3.hpp>              // AJOUTEZ CETTE LIGNE
+#include <glm/glm.hpp>               
+#include <glm/vec3.hpp>              
 
 using namespace gl;
 

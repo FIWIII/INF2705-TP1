@@ -4,12 +4,6 @@
 
 using namespace gl;
 
-// TODO: Il est fortement recommandé de définir quelques structs
-//       pour représenter les attributs.
-//       Faire de même pour représenter une vertex, qui est constitué d'attributs.
-//       Cela facilitera l'utilisation et rendra votre code plus clair.
-//       Un format entrelacé est recommandé (ordonné par vertex au lieu par attribut).
-// struct ... { ... };
 struct Vertex3D {
     glm::vec3 position;  // Position 3D (x, y, z)
     glm::vec3 color;     // Couleur RGB (normalisée 0-1)
@@ -30,12 +24,7 @@ void Model::load(const char* path)
     std::vector<unsigned char> colorGreen = vertex.getProperty<unsigned char>("green");
     std::vector<unsigned char> colorBlue  = vertex.getProperty<unsigned char>("blue");
 
-    // Tableau de faces, une face est un tableau d'indices.
-    // Les faces sont toutes des triangles dans nos modèles (donc 3 indices par face).
     std::vector<std::vector<unsigned int>> facesIndices = plyIn.getFaceIndices<unsigned int>();
-    
-    // TODO: Rassemblez les propriétés du fichier .ply pour correspondre au
-    //       format de donnée souhaité (celui que vous avez défini dans la struct).
 
     size_t numVertices = positionX.size();
     std::vector<Vertex3D> vertices(numVertices);
@@ -43,7 +32,6 @@ void Model::load(const char* path)
     for (size_t i = 0; i < numVertices; ++i)
     {
         vertices[i].position = glm::vec3(positionX[i], positionY[i], positionZ[i]);
-        // Normaliser les couleurs (0-255 -> 0.0-1.0)
         vertices[i].color = glm::vec3(
             colorRed[i] / 255.0f,
             colorGreen[i] / 255.0f,
@@ -51,7 +39,6 @@ void Model::load(const char* path)
         );
     }
     
-    // TODO: Rassemblez les indices dans un seul tableau contigu.
 
     std::vector<GLuint> indices;
     for (const auto& face : facesIndices)
@@ -61,12 +48,9 @@ void Model::load(const char* path)
             indices.push_back(index);
         }
     }
-    // Sauvegarder le nombre d'indices à dessiner
+
     count_ = static_cast<GLsizei>(indices.size());
     
-    // TODO: Allocation des ressources sur la carte graphique et envoyer les
-    //       données traitées dans le vbo et ebo sur la carte graphique.
-
     glGenBuffers(1, &vbo_);
     glGenBuffers(1, &ebo_);
     glGenVertexArrays(1, &vao_);
@@ -94,16 +78,10 @@ void Model::load(const char* path)
     // Délier le VAO
     glBindVertexArray(0);
     
-    // TODO: Créez un vao et spécifiez le format des données dans celui-ci.
-    //       N'oubliez pas de lier le ebo avec le vao et de délier le vao
-    //       du contexte pour empêcher des modifications sur celui-ci.
-    
-    // TODO: Initialisez count_, qui correspond au nombre d'indices à dessiner.
 }
 
 Model::~Model()
 {
-    // TODO: Libérez les ressources allouées.
     if (vao_) glDeleteVertexArrays(1, &vao_);
     if (vbo_) glDeleteBuffers(1, &vbo_);
     if (ebo_) glDeleteBuffers(1, &ebo_);
@@ -111,7 +89,6 @@ Model::~Model()
 
 void Model::draw() const
 {
-    // TODO: Dessin du modèle.
     glBindVertexArray(vao_);
     glDrawElements(GL_TRIANGLES, count_, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);

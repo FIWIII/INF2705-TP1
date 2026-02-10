@@ -2,8 +2,8 @@
 
 #include <glbinding/gl/gl.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>  // AJOUTEZ CETTE LIGNE
-#include <glm/gtc/type_ptr.hpp>           // AJOUTEZ CETTE LIGNE
+#include <glm/gtc/matrix_transform.hpp>  
+#include <glm/gtc/type_ptr.hpp>           
 
 #include "model.hpp"
 
@@ -21,11 +21,6 @@ public:
     void setColorMod(const glm::vec3& color);
     
 private:
-    // TODO: Une division en méthodes a déjà été réalisée pour vous.
-    //       Libre à vous de modifier (ou ajouter) les définitions (et surtout
-    //       d'ajouter des paramètres d'entrées). Procédez comme bon vous semble.
-    //       Il sera important de penser à comment réutiliser le plus possible les matrices.
-    //       Utilisez le passage par référence ou par copie pour vous aider.
     
     void drawFrame(glm::mat4& projView, glm::mat4 carModel);
 
