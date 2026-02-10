@@ -2,8 +2,6 @@
 
 #include <glbinding/gl/gl.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include "model.hpp"
 
@@ -18,28 +16,6 @@ public:
   void draw(glm::mat4 &projView);
 
   void setColorMod(const glm::vec3 &color);
-
-private:
-  void drawFrame(glm::mat4 &projView, glm::mat4 carModel);
-
-  void drawWheel(glm::mat4 &projView, glm::mat4 wheelModel, bool isFrontWheel);
-  void drawWheels(glm::mat4 &projView, glm::mat4 carModel);
-
-  void drawBlinker(glm::mat4 &projView, glm::mat4 headlightModel,
-                   bool isLeftHeadlight);
-  void drawLight(glm::mat4 &projView, glm::mat4 headlightModel,
-                 bool isFrontHeadlight);
-  void drawHeadlight(glm::mat4 &projView, glm::mat4 headlightModel,
-                     bool isFrontHeadlight, bool isLeftHeadlight);
-  void drawHeadlights(glm::mat4 &projView, glm::mat4 frameModel);
-
-  glm::vec3 lastColorMod_;
-
-private:
-  Model frame_;
-  Model wheel_;
-  Model blinker_;
-  Model light_;
 
 public:
   glm::vec3 position;
@@ -56,6 +32,28 @@ public:
   bool isBlinkerOn;
   float blinkerTimer;
 
-  GLint colorModUniformLocation{-1};
-  GLint mvpUniformLocation{-1};
+  gl::GLint colorModUniformLocation;
+  gl::GLint mvpUniformLocation;
+
+private:
+  void drawFrame(glm::mat4 &projView, glm::mat4 carModel);
+
+  void drawWheel(glm::mat4 &projView, glm::mat4 wheelModel, bool isFrontWheel);
+  void drawWheels(glm::mat4 &projView, glm::mat4 carModel);
+
+  void drawBlinker(glm::mat4 &projView, glm::mat4 headlightModel,
+                   bool isLeftHeadlight);
+  void drawLight(glm::mat4 &projView, glm::mat4 headlightModel,
+                 bool isFrontHeadlight);
+  void drawHeadlight(glm::mat4 &projView, glm::mat4 headlightModel,
+                     bool isFrontHeadlight, bool isLeftHeadlight);
+  void drawHeadlights(glm::mat4 &projView, glm::mat4 frameModel);
+
+private:
+  Model frame_;
+  Model wheel_;
+  Model blinker_;
+  Model light_;
+
+  glm::vec3 lastColorMod_;
 };
