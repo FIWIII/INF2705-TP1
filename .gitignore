@@ -13,3 +13,5 @@ build/
 
 # Windows
 Thumbs.db
+.cache/
+.vscode/
