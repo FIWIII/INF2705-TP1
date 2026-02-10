@@ -16,8 +16,6 @@
 #include <string>
 #include <vector>
 
-#define CHECK_GL_ERROR printGLError(__FILE__, __LINE__)
-
 using namespace gl;
 using namespace glm;
 
@@ -75,7 +73,6 @@ struct App : public OpenGLApplication {
     loadModels();
 
     initStaticMatrices();
-    CHECK_GL_ERROR;
   }
 
   void checkShaderCompilingError(const char *name, GLuint id) {
@@ -227,21 +224,8 @@ struct App : public OpenGLApplication {
   }
 
   GLuint loadShaderObject(GLenum type, const char *path) {
-    std::string shaderSource = readFile(path);
-
-    // Si le fichier n'est pas trouvé dans le dossier relatif au binaire,
-    // essayer de le trouver dans le sous-dossier shaders/
-    if (shaderSource.empty()) {
-      std::string altPath = std::string("./shaders/") +
-                            std::filesystem::path(path).filename().string();
-      shaderSource = readFile(altPath);
-      if (shaderSource.empty()) {
-        // Essayer de remonter d'un niveau si on est dans build/
-        altPath = std::string("../src/shaders/") +
-                  std::filesystem::path(path).filename().string();
-        shaderSource = readFile(altPath);
-      }
-    }
+    std::string shaderSource = readFile(
+        "../src/shaders/" + std::filesystem::path(path).filename().string());
 
     if (shaderSource.empty()) {
       std::cerr << "CRITICAL ERROR: Shader file not found: " << path
@@ -350,13 +334,6 @@ struct App : public OpenGLApplication {
   }
 
   void initShapeData() {
-    // TODO: Initialisez les objets graphiques pour le dessin du polygone.
-    //       Ne passez aucune donnée pour le moment (déjà géré dans
-    //       App::sceneShape), on demande seulement de faire l'allocation de
-    //       buffers suffisamment gros pour contenir le polygone durant toute
-    //       l'exécution du programme. Réfléchissez bien à l'usage des buffers
-    //       (paramètre de glBufferData).
-
     // Générer les buffers
     glGenBuffers(1, &vbo_);      // Vertex Buffer Object
     glGenBuffers(1, &ebo_);      // Element Buffer Object
@@ -389,12 +366,6 @@ struct App : public OpenGLApplication {
 
     // Délier le VAO pour éviter des modifications accidentelles
     glBindVertexArray(0);
-
-    CHECK_GL_ERROR;
-
-    // TODO: Créez un vao et spécifiez le format des données dans celui-ci.
-    //       N'oubliez pas de lier le ebo avec le vao et de délier le vao
-    //       du contexte pour empêcher des modifications sur celui-ci.
   }
 
   void sceneShape() {
@@ -408,11 +379,6 @@ struct App : public OpenGLApplication {
       generateNgon();
       // generateNgon(vertices_, elements_, nSide_);
 
-      // TODO: Le nombre de côtés a changé, la méthode App::generateNgon
-      //       (que vous avez implémentée) a modifié les données sur le CPU.
-      //       Ici, il faut envoyer les données à jour au GPU.
-      //       Attention, il ne faut pas faire d'allocation/réallocation, on
-      //       veut seulement mettre à jour les buffers actuels.
       // Mettre à jour le VBO avec les nouvelles données
       glBindBuffer(GL_ARRAY_BUFFER, vbo_);
       glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * (nSide_ + 1),
@@ -435,8 +401,6 @@ struct App : public OpenGLApplication {
 
     // Délier le VAO
     glBindVertexArray(0);
-
-    CHECK_GL_ERROR;
   }
 
   void drawModel(const Model &model, const glm::mat4 &projView,
@@ -481,11 +445,6 @@ struct App : public OpenGLApplication {
   }
 
   glm::mat4 getPerspectiveProjectionMatrix() {
-    // TODO: Calculer la matrice de projection.
-    //
-    //       Celle-ci aura un fov de 70 degrés, un near à 0.1 et un far à 300.
-    //
-
     // getWindowAspect();
     float fov = glm::radians(70.0f);  // Convertir 70° en radians
     float aspect = getWindowAspect(); // Ratio largeur/hauteur
